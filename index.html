@@ -6,39 +6,42 @@
 <title>Room Type Predictor · NYC Airbnb</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="skyline-bg" aria-hidden="true" id="skylineBg"></div>
 <div class="grain" aria-hidden="true"></div>
 
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="route">
+      <span class="bullet" aria-hidden="true">R</span>
+      <div class="route-text">
+        <p class="route-line">ROOM TYPE ARRIVALS</p>
+        <p class="route-sub">NYC Airbnb <span class="sep">·</span> listing classifier</p>
+      </div>
+    </div>
+    <span class="status-pill" id="apiStatus"><span class="status-dot"></span>checking API</span>
+  </div>
+</header>
+
 <div class="page">
+  <main class="layout">
 
-  <header class="hero">
-    <p class="eyebrow">NYC Airbnb <span class="dot">·</span> Room Type Predictor</p>
-    <h1 class="headline">What kind of stay<br>is this listing?</h1>
-    <p class="subhead">Enter a listing's details and the model will predict whether it's an
-      entire home, a private room, or a shared room — the way the city lights up differently
-      behind each kind of door.</p>
-  </header>
-
-  <main class="grid">
-
-    <!-- FORM PANEL -->
-    <section class="panel form-panel" aria-labelledby="formTitle">
-      <div class="panel-head">
+    <!-- FORM CARD -->
+    <section class="card form-card" aria-labelledby="formTitle">
+      <div class="card-head">
         <h2 id="formTitle">Listing details</h2>
-        <button type="button" class="ghost-btn" id="exampleBtn">Try an example</button>
+        <button type="button" class="example-btn" id="exampleBtn">Use an example</button>
       </div>
 
       <form id="predictForm" novalidate>
 
-        <fieldset>
-          <legend>Location</legend>
+        <div class="group">
+          <p class="group-title">Location</p>
 
-          <div class="field-row">
+          <div class="row">
             <div class="field">
               <label for="latitude">Latitude</label>
               <input type="number" id="latitude" name="latitude" step="0.000001" min="-90" max="90" placeholder="40.7128" required>
@@ -49,7 +52,7 @@
             </div>
           </div>
 
-          <div class="field-row">
+          <div class="row">
             <div class="field">
               <label for="neighbourhood_group">Borough</label>
               <select id="neighbourhood_group" name="neighbourhood_group" required>
@@ -66,11 +69,11 @@
               <input type="text" id="neighbourhood" name="neighbourhood" placeholder="e.g. Williamsburg" required>
             </div>
           </div>
-        </fieldset>
+        </div>
 
-        <fieldset>
-          <legend>Pricing &amp; stay</legend>
-          <div class="field-row">
+        <div class="group">
+          <p class="group-title">Pricing &amp; stay</p>
+          <div class="row">
             <div class="field">
               <label for="price">Price per night (USD)</label>
               <input type="number" id="price" name="price" min="1" step="1" placeholder="150" required>
@@ -85,11 +88,11 @@
             <input type="range" id="availability_365" name="availability_365" min="0" max="365" step="1" value="180" required>
             <div class="range-readout"><span id="availabilityValue">180</span> / 365 days</div>
           </div>
-        </fieldset>
+        </div>
 
-        <fieldset>
-          <legend>Reviews &amp; host</legend>
-          <div class="field-row">
+        <div class="group">
+          <p class="group-title">Reviews &amp; host</p>
+          <div class="row">
             <div class="field">
               <label for="number_of_reviews">Total reviews</label>
               <input type="number" id="number_of_reviews" name="number_of_reviews" min="0" step="1" placeholder="24" required>
@@ -103,9 +106,9 @@
             <label for="calculated_host_listings_count">Listings by this host</label>
             <input type="number" id="calculated_host_listings_count" name="calculated_host_listings_count" min="0" step="1" placeholder="1" required>
           </div>
-        </fieldset>
+        </div>
 
-        <button type="submit" class="predict-btn" id="predictBtn">
+        <button type="submit" class="go-btn" id="predictBtn">
           <span class="btn-label">Predict room type</span>
           <span class="btn-spinner" aria-hidden="true"></span>
         </button>
@@ -114,43 +117,46 @@
       </form>
     </section>
 
-    <!-- RESULT PANEL -->
-    <section class="panel result-panel" aria-labelledby="resultTitle" aria-live="polite">
-      <div class="panel-head">
-        <h2 id="resultTitle">Prediction</h2>
-        <span class="api-status" id="apiStatus"><span class="status-dot"></span>checking API</span>
+    <!-- ARRIVALS BOARD -->
+    <aside class="board" aria-labelledby="boardTitle" aria-live="polite">
+      <div class="board-head">
+        <h2 id="boardTitle">Prediction</h2>
+        <span class="board-clock" id="boardClock">— — : — —</span>
       </div>
 
-      <div class="result-empty" id="resultEmpty">
-        <div class="empty-buildings" aria-hidden="true">
-          <div class="mini-building small"></div>
-          <div class="mini-building medium"></div>
-          <div class="mini-building large"></div>
+      <div class="board-screen">
+
+        <div class="board-empty" id="resultEmpty">
+          <div class="board-row placeholder">
+            <span class="dot g"></span><span class="r-label">Entire home/apt</span><span class="r-bar"><span></span></span><span class="r-pct">--%</span>
+          </div>
+          <div class="board-row placeholder">
+            <span class="dot b"></span><span class="r-label">Private room</span><span class="r-bar"><span></span></span><span class="r-pct">--%</span>
+          </div>
+          <div class="board-row placeholder">
+            <span class="dot o"></span><span class="r-label">Shared room</span><span class="r-bar"><span></span></span><span class="r-pct">--%</span>
+          </div>
+          <p class="board-note">Enter listing details and predict to light up the board.</p>
         </div>
-        <p>Fill in the listing details and predict to see the city light up.</p>
+
+        <div class="board-content" id="resultContent" hidden>
+          <div class="board-headline">
+            <span class="hl-eyebrow">NOW BOARDING</span>
+            <span class="hl-name" id="predictedName">—</span>
+          </div>
+          <div class="board-rows" id="boardRows">
+            <!-- built by JS -->
+          </div>
+        </div>
+
       </div>
-
-      <div class="result-content" id="resultContent" hidden>
-
-        <div class="predicted-label">
-          <span class="predicted-eyebrow">Most likely</span>
-          <span class="predicted-name" id="predictedName">—</span>
-        </div>
-
-        <div class="buildings-row" id="buildingsRow">
-          <!-- built by JS: one building per class -->
-        </div>
-
-        <div class="prob-list" id="probList">
-          <!-- built by JS -->
-        </div>
-      </div>
-    </section>
+    </aside>
 
   </main>
 
   <footer class="page-footer">
-    <p>Model served via FastAPI &amp; scikit-learn <span class="dot">·</span> trained on NYC Airbnb listing data</p>
+    <p>Model served via FastAPI &amp; scikit-learn <span class="sep">·</span> trained on NYC Airbnb listing data</p>
+    <p class="footer-credit">Built by Nandita Panchal <span class="sep">·</span> <a href="mailto:nanditapanchalg@gmail.com">nanditapanchalg@gmail.com</a></p>
   </footer>
 </div>
 

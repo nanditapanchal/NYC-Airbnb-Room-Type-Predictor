@@ -8,12 +8,12 @@ const HEALTH_ENDPOINT = `${API_BASE_URL}/`;
 
 const REDUCE_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// Room type classes the model returns, and the visual weight of the
-// building we draw for each one (window grid + max height).
+// Room type classes the model returns, paired with a subway-line
+// color used for the bullet dot on the arrivals board.
 const ROOM_CLASSES = [
-  { key: "Entire home/apt", label: "Entire home/apt", rows: 6, cols: 2, height: "100%" },
-  { key: "Private room", label: "Private room", rows: 4, cols: 2, height: "68%" },
-  { key: "Shared room", label: "Shared room", rows: 2, cols: 2, height: "42%" },
+  { key: "Entire home/apt", label: "Entire home/apt", dot: "g" },
+  { key: "Private room", label: "Private room", dot: "b" },
+  { key: "Shared room", label: "Shared room", dot: "o" },
 ];
 
 // A few realistic example listings so people can explore without typing.
@@ -37,25 +37,16 @@ const EXAMPLES = [
 let exampleIndex = 0;
 
 // ============================================================
-// AMBIENT SKYLINE WINDOW TWINKLE
+// STATION CLOCK — small ambient touch on the board header
 // ============================================================
-function buildSkylineLights() {
-  const container = document.getElementById("skylineBg");
-  if (!container || REDUCE_MOTION) return;
-
-  const count = 42;
-  for (let i = 0; i < count; i++) {
-    const light = document.createElement("div");
-    light.className = "window-light";
-    const size = Math.random() < 0.5 ? 2 : 3;
-    light.style.width = `${size}px`;
-    light.style.height = `${size}px`;
-    light.style.left = `${Math.random() * 100}%`;
-    light.style.bottom = `${8 + Math.random() * 32}vh`;
-    light.style.animationDelay = `${Math.random() * 5}s`;
-    light.style.animationDuration = `${3.5 + Math.random() * 3}s`;
-    container.appendChild(light);
-  }
+function tickClock() {
+  const el = document.getElementById("boardClock");
+  if (!el) return;
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  el.textContent = `${hh}:${mm}:${ss}`;
 }
 
 // ============================================================
@@ -90,20 +81,6 @@ form.addEventListener("submit", async (e) => {
   if (!form.reportValidity()) return;
 
   const payload = collectPayload();
-  console.log("========== PAYLOAD ==========");
-  console.log(JSON.stringify(payload, null, 2));
-
-  for (const [key, value] of Object.entries(payload)) {
-      console.log(
-          key,
-          "=>",
-          value,
-          "| type:",
-          typeof value,
-          "| NaN:",
-          Number.isNaN(value)
-      );
-  }
   setLoading(true);
 
   try {
@@ -113,19 +90,15 @@ form.addEventListener("submit", async (e) => {
       body: JSON.stringify(payload),
     });
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-
-    console.error("API ERROR STATUS:", res.status);
-    console.error("API ERROR BODY:", body);
-    console.error("SENT PAYLOAD:", payload);
-
-    throw new Error(
-      body?.detail
-        ? formatDetail(body.detail)
-        : `Request failed (${res.status}).`
-    );
-  }
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      console.error("API ERROR STATUS:", res.status);
+      console.error("API ERROR BODY:", body);
+      console.error("SENT PAYLOAD:", payload);
+      throw new Error(
+        body?.detail ? formatDetail(body.detail) : `Request failed (${res.status}).`
+      );
+    }
 
     const result = await res.json();
     renderResult(result);
@@ -167,13 +140,12 @@ function setLoading(isLoading) {
 }
 
 // ============================================================
-// RESULT RENDERING
+// RESULT RENDERING — the arrivals board
 // ============================================================
 const resultEmpty = document.getElementById("resultEmpty");
 const resultContent = document.getElementById("resultContent");
 const predictedName = document.getElementById("predictedName");
-const buildingsRow = document.getElementById("buildingsRow");
-const probList = document.getElementById("probList");
+const boardRows = document.getElementById("boardRows");
 
 function renderResult(result) {
   const predicted = result.Predicted_room_type;
@@ -185,95 +157,50 @@ function renderResult(result) {
   const paired = ROOM_CLASSES.map((cls, i) => ({
     ...cls,
     prob: typeof probs?.[i] === "number" ? probs[i] : 0,
-  }));
+  })).sort((a, b) => b.prob - a.prob);
 
   resultEmpty.hidden = true;
   resultContent.hidden = false;
 
   predictedName.textContent = predicted;
 
-  buildBuildings(paired, predicted);
-  buildProbList(paired, predicted);
+  buildBoardRows(paired, predicted);
 }
 
-function buildBuildings(paired, predicted) {
-  buildingsRow.innerHTML = "";
+function buildBoardRows(paired, predicted) {
+  boardRows.innerHTML = "";
 
   paired.forEach((cls) => {
-    const col = document.createElement("div");
-    col.className = "building-col";
-
-    const b = document.createElement("div");
-    b.className = "building";
-    b.style.setProperty("--h", "18%");
-
-    const totalWindows = cls.rows * cls.cols;
-    const litCount = Math.round(totalWindows * cls.prob);
-
-    for (let i = 0; i < totalWindows; i++) {
-      const win = document.createElement("div");
-      win.className = "win";
-      b.appendChild(win);
-    }
-
-    const caption = document.createElement("div");
-    caption.className = "building-caption";
-    caption.textContent = cls.label;
-
-    col.appendChild(b);
-    col.appendChild(caption);
-    buildingsRow.appendChild(col);
-
-    // Animate height + lit windows after insertion, staggered per building.
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        b.style.setProperty("--h", cls.height);
-        const wins = b.querySelectorAll(".win");
-        wins.forEach((w, i) => {
-          if (i < litCount) {
-            setTimeout(() => w.classList.add("lit"), REDUCE_MOTION ? 0 : 60 * i + 300);
-          }
-        });
-        if (cls.key === predicted) {
-          b.style.boxShadow = "0 0 22px -4px var(--amber-glow)";
-        }
-      }, REDUCE_MOTION ? 0 : 80);
-    });
-  });
-}
-
-function buildProbList(paired, predicted) {
-  probList.innerHTML = "";
-  const sorted = [...paired].sort((a, b) => b.prob - a.prob);
-
-  sorted.forEach((cls) => {
     const row = document.createElement("div");
-    row.className = "prob-row" + (cls.key === predicted ? " top" : "");
+    row.className = "board-row" + (cls.key === predicted ? " top" : "");
 
-    const name = document.createElement("span");
-    name.className = "name";
-    name.textContent = cls.label;
+    const dot = document.createElement("span");
+    dot.className = `dot ${cls.dot}`;
 
-    const value = document.createElement("span");
-    value.className = "value";
-    value.textContent = "0%";
+    const label = document.createElement("span");
+    label.className = "r-label";
+    label.textContent = cls.label;
 
-    const track = document.createElement("div");
-    track.className = "prob-track";
-    const fill = document.createElement("div");
-    fill.className = "prob-fill";
-    track.appendChild(fill);
+    const bar = document.createElement("span");
+    bar.className = "r-bar";
+    const fill = document.createElement("span");
+    bar.appendChild(fill);
 
-    row.appendChild(name);
-    row.appendChild(value);
-    row.appendChild(track);
-    probList.appendChild(row);
+    const pct = document.createElement("span");
+    pct.className = "r-pct";
+    pct.textContent = "0%";
 
-    const pct = Math.round(cls.prob * 100);
+    row.appendChild(dot);
+    row.appendChild(label);
+    row.appendChild(bar);
+    row.appendChild(pct);
+    boardRows.appendChild(row);
+
+    const target = Math.round(cls.prob * 100);
     requestAnimationFrame(() => {
       setTimeout(() => {
-        fill.style.width = `${pct}%`;
-        animateCount(value, pct);
+        fill.style.width = `${target}%`;
+        animateCount(pct, target);
       }, REDUCE_MOTION ? 0 : 150);
     });
   });
@@ -320,6 +247,7 @@ async function checkApiStatus() {
 // INIT
 // ============================================================
 document.addEventListener("DOMContentLoaded", () => {
-  buildSkylineLights();
   checkApiStatus();
+  tickClock();
+  setInterval(tickClock, 1000);
 });

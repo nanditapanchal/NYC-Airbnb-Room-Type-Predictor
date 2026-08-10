@@ -90,6 +90,20 @@ form.addEventListener("submit", async (e) => {
   if (!form.reportValidity()) return;
 
   const payload = collectPayload();
+  console.log("========== PAYLOAD ==========");
+  console.log(JSON.stringify(payload, null, 2));
+
+  for (const [key, value] of Object.entries(payload)) {
+      console.log(
+          key,
+          "=>",
+          value,
+          "| type:",
+          typeof value,
+          "| NaN:",
+          Number.isNaN(value)
+      );
+  }
   setLoading(true);
 
   try {
@@ -99,10 +113,19 @@ form.addEventListener("submit", async (e) => {
       body: JSON.stringify(payload),
     });
 
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      throw new Error(body?.detail ? formatDetail(body.detail) : `Request failed (${res.status}).`);
-    }
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+
+    console.error("API ERROR STATUS:", res.status);
+    console.error("API ERROR BODY:", body);
+    console.error("SENT PAYLOAD:", payload);
+
+    throw new Error(
+      body?.detail
+        ? formatDetail(body.detail)
+        : `Request failed (${res.status}).`
+    );
+  }
 
     const result = await res.json();
     renderResult(result);
